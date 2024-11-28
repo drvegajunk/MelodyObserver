@@ -1,4 +1,3 @@
-import pygame
 import tkinter as tk
 from tkinter import filedialog
 import matplotlib.pyplot as plt
@@ -8,23 +7,26 @@ import threading
 import time
 from io import BytesIO
 from PIL import Image, ImageTk
+from audio_player_mixer import AudioPlayerMixer
 
 
 class AudioPlayer:
     WAVEFORM_WINDOW_WIDTH = 800
     WAVEFORM_WINDOW_HEIGHT = 300
 
-    def __init__(self, root):
+    def __init__(self):
+        root = tk.Tk()
+        root.title("Audio Player with Waveform Visualization")
+        root.geometry("800x600")
         self.root = root
-        self.file_path = None
         self.is_playing = False
         self.start_time = 0
         self.audio_duration = 0
         self.zoom_level = 1.0
         self.start_view = 0
-        pygame.init()
-        pygame.mixer.init()
+        self.audio_player_mixer = AudioPlayerMixer()
         self.create_widgets()
+        root.mainloop()
 
     def create_widgets(self):
         self.load_audio_button = tk.Button(
@@ -51,18 +53,19 @@ class AudioPlayer:
         self.cursor_line = None
 
     def load_audio(self):
-        self.file_path = filedialog.askopenfilename(
+        file_path = filedialog.askopenfilename(
             filetypes=[("Audio Files", "*.wav")])
-        if self.file_path:
-            pygame.mixer.music.load(self.file_path)
-            self.play_button.config(state=tk.NORMAL)
-            self.pause_button.config(state=tk.NORMAL)
-            self.stop_button.config(state=tk.NORMAL)
-            self.load_audio_button.config(state=tk.DISABLED)
-            self.plot_waveform()
+        if not file_path:
+            raise FileNotFoundError()
+        self.audio_player_mixer.load(file_path)
+        self.play_button.config(state=tk.NORMAL)
+        self.pause_button.config(state=tk.NORMAL)
+        self.stop_button.config(state=tk.NORMAL)
+        self.load_audio_button.config(state=tk.DISABLED)
+        self.plot_waveform(file_path)
 
-    def plot_waveform(self):
-        with wave.open(self.file_path, "rb") as wav_file:
+    def plot_waveform(self, file_path):
+        with wave.open(file_path, "rb") as wav_file:
             n_frames = wav_file.getnframes()
             framerate = wav_file.getframerate()
             duration = n_frames / float(framerate)
@@ -117,25 +120,27 @@ class AudioPlayer:
         self.plot_waveform()
 
     def play_audio(self):
-        if not self.is_playing:
-            pygame.mixer.music.play()
-            self.is_playing = True
-            self.start_time = time.time()
-            self.play_button.config(state=tk.DISABLED)
-            self.pause_button.config(state=tk.NORMAL)
-            self.stop_button.config(state=tk.NORMAL)
-            threading.Thread(
-                target=self.update_timestamp_and_cursor, daemon=True).start()
+        if self.is_playing:
+            return
+        self.audio_player_mixer.play()
+        self.is_playing = True
+        self.start_time = time.time()
+        self.play_button.config(state=tk.DISABLED)
+        self.pause_button.config(state=tk.NORMAL)
+        self.stop_button.config(state=tk.NORMAL)
+        threading.Thread(
+            target=self.update_timestamp_and_cursor, daemon=True).start()
 
     def pause_audio(self):
-        if self.is_playing:
-            pygame.mixer.music.pause()
-            self.is_playing = False
-            self.play_button.config(state=tk.NORMAL)
+        if not self.is_playing:
+            return
+        self.audio_player_mixer.pause()
+        self.is_playing = False
+        self.play_button.config(state=tk.NORMAL)
 
     def stop_audio(self):
-        pygame.mixer.music.stop()
         self.is_playing = False
+        self.audio_player_mixer.stop()
         self.play_button.config(state=tk.NORMAL)
         self.pause_button.config(state=tk.DISABLED)
         self.stop_button.config(state=tk.DISABLED)
@@ -162,8 +167,4 @@ class AudioPlayer:
 
 
 if __name__ == "__main__":
-    root = tk.Tk()
-    root.title("Audio Player with Waveform Visualization")
-    root.geometry("800x600")
-    app = AudioPlayer(root)
-    root.mainloop()
+    AudioPlayer()
