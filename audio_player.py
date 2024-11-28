@@ -6,6 +6,9 @@ import numpy as np
 import wave
 import threading
 import time
+from io import BytesIO
+from PIL import Image, ImageTk
+
 
 class AudioPlayer:
     def __init__(self, root):
@@ -13,27 +16,24 @@ class AudioPlayer:
         self.file_path = None
         self.is_playing = False
         self.start_time = 0
+        self.audio_duration = 0
+        pygame.init()
         pygame.mixer.init()
         self.create_widgets()
 
     def create_widgets(self):
         self.load_button = tk.Button(self.root, text="Load Audio", command=self.load_audio, width=20)
         self.load_button.pack(pady=10)
-        
         self.play_button = tk.Button(self.root, text="Play", command=self.play_audio, width=20, state=tk.DISABLED)
         self.play_button.pack(pady=10)
-        
         self.pause_button = tk.Button(self.root, text="Pause", command=self.pause_audio, width=20, state=tk.DISABLED)
         self.pause_button.pack(pady=10)
-        
         self.stop_button = tk.Button(self.root, text="Stop", command=self.stop_audio, width=20, state=tk.DISABLED)
         self.stop_button.pack(pady=10)
-        
-        self.canvas = tk.Canvas(self.root, width=800, height=300, bg="white")
-        self.canvas.pack(pady=20)
-        
         self.timestamp_label = tk.Label(self.root, text="Timestamp: 0:00 / 0:00")
         self.timestamp_label.pack(pady=10)
+        self.waveform_canvas = tk.Canvas(self.root, width=800, height=300, bg="white")
+        self.waveform_canvas.pack(pady=20)
 
     def load_audio(self):
         self.file_path = filedialog.askopenfilename(filetypes=[("Audio Files", "*.wav *.mp3")])
@@ -54,15 +54,22 @@ class AudioPlayer:
                 n_channels = wav_file.getnchannels()
                 if n_channels == 2:
                     audio_array = audio_array[::2]
-                times = np.linspace(0, duration, num=n_frames)
-                self.canvas.delete("all")
+                times = np.linspace(0, duration, num=len(audio_array))
                 fig, ax = plt.subplots(figsize=(8, 3))
                 ax.plot(times, audio_array)
                 ax.set_xlabel("Time (s)")
                 ax.set_ylabel("Amplitude")
-                fig.canvas.draw()
-                waveform_image = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
-                waveform_image = waveform_image.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+                ax.set_title("Waveform")
+                ax.axis("off")
+                buf = BytesIO()
+                plt.savefig(buf, format="PNG")
+                buf.seek(0)
+                image_data = buf.read()
+                buf.close()
+                image = Image.open(BytesIO(image_data))
+                image = image.resize((800, 300), Image.Resampling.LANCZOS)
+                self.waveform_image = ImageTk.PhotoImage(image)
+                self.waveform_canvas.create_image(0, 0, anchor=tk.NW, image=self.waveform_image)
                 plt.close(fig)
 
     def play_audio(self):
@@ -97,9 +104,10 @@ class AudioPlayer:
             self.timestamp_label.config(text=f"Timestamp: {current_time} / {total_time}")
             time.sleep(1)
 
+
 if __name__ == "__main__":
     root = tk.Tk()
-    root.title("Audio Player with Visualization")
+    root.title("Audio Player with Waveform Visualization")
     root.geometry("800x600")
     app = AudioPlayer(root)
     root.mainloop()
