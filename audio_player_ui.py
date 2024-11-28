@@ -21,7 +21,7 @@ class AudioPlayerUi:
         self.audio_duration = 0
         self.zoom_level = 1.0
         self.start_view = 0
-        self.is_playing = True
+        self.is_playing = False
 
         root = tk.Tk()
         root.title(self.AUDIO_PLAYER_TITLE)
