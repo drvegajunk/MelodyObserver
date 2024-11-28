@@ -37,48 +37,50 @@ class AudioPlayer:
         self.cursor_line = None
 
     def load_audio(self):
-        self.file_path = filedialog.askopenfilename(filetypes=[("Audio Files", "*.wav *.mp3")])
+        self.file_path = filedialog.askopenfilename(filetypes=[("Audio Files", "*.wav")])
         if self.file_path:
             pygame.mixer.music.load(self.file_path)
             self.play_button.config(state=tk.NORMAL)
+            self.pause_button.config(state=tk.NORMAL)
+            self.stop_button.config(state=tk.NORMAL)
+            self.load_button.config(state=tk.DISABLED)
             self.plot_waveform()
 
     def plot_waveform(self):
-        if self.file_path.endswith(".wav"):
-            with wave.open(self.file_path, "rb") as wav_file:
-                n_frames = wav_file.getnframes()
-                framerate = wav_file.getframerate()
-                duration = n_frames / float(framerate)
-                self.audio_duration = duration
-                audio_frames = wav_file.readframes(n_frames)
-                audio_array = np.frombuffer(audio_frames, dtype=np.int16)
-                n_channels = wav_file.getnchannels()
-                if n_channels == 2:
-                    audio_array = audio_array[::2]
+        with wave.open(self.file_path, "rb") as wav_file:
+            n_frames = wav_file.getnframes()
+            framerate = wav_file.getframerate()
+            duration = n_frames / float(framerate)
+            self.audio_duration = duration
+            audio_frames = wav_file.readframes(n_frames)
+            audio_array = np.frombuffer(audio_frames, dtype=np.int16)
+            n_channels = wav_file.getnchannels()
+            if n_channels == 2:
+                audio_array = audio_array[::2]
 
-                # Normalize amplitude to fit within canvas height (300 pixels)
-                audio_array = audio_array / np.max(np.abs(audio_array))  # Normalize to range [-1, 1]
-                audio_array = (audio_array * 150) + 150  # Scale to [0, 300]
+            # Normalize amplitude to fit within canvas height (300 pixels)
+            audio_array = audio_array / np.max(np.abs(audio_array))  # Normalize to range [-1, 1]
+            audio_array = (audio_array * 150) + 150  # Scale to [0, 300]
 
-                # Normalize time to fit within canvas width (800 pixels)
-                times = np.linspace(0, 800, num=len(audio_array))
+            # Normalize time to fit within canvas width (800 pixels)
+            times = np.linspace(0, 800, num=len(audio_array))
 
-                fig, ax = plt.subplots(figsize=(8, 3), dpi=100)
-                ax.plot(times, audio_array, color="blue", linewidth=1)
-                ax.set_xlim(0, 800)
-                ax.set_ylim(0, 300)
-                ax.axis("off")
-                fig.subplots_adjust(left=0, right=1, top=1, bottom=0)
+            fig, ax = plt.subplots(figsize=(8, 3), dpi=100)
+            ax.plot(times, audio_array, color="blue", linewidth=1)
+            ax.set_xlim(0, 800)
+            ax.set_ylim(0, 300)
+            ax.axis("off")
+            fig.subplots_adjust(left=0, right=1, top=1, bottom=0)
 
-                buf = BytesIO()
-                fig.savefig(buf, format="PNG", dpi=100)
-                buf.seek(0)
-                image_data = buf.read()
-                buf.close()
-                image = Image.open(BytesIO(image_data))
-                self.waveform_image = ImageTk.PhotoImage(image)
-                self.waveform_canvas.create_image(0, 0, anchor=tk.NW, image=self.waveform_image)
-                plt.close(fig)
+            buf = BytesIO()
+            fig.savefig(buf, format="PNG", dpi=100)
+            buf.seek(0)
+            image_data = buf.read()
+            buf.close()
+            image = Image.open(BytesIO(image_data))
+            self.waveform_image = ImageTk.PhotoImage(image)
+            self.waveform_canvas.create_image(0, 0, anchor=tk.NW, image=self.waveform_image)
+            plt.close(fig)
 
     def play_audio(self):
         if not self.is_playing:
