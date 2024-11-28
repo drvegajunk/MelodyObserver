@@ -9,7 +9,6 @@ import time
 from io import BytesIO
 from PIL import Image, ImageTk
 
-
 class AudioPlayer:
     WAVEFORM_WINDOW_WIDTH = 800
     WAVEFORM_WINDOW_HEIGHT = 300
@@ -20,13 +19,15 @@ class AudioPlayer:
         self.is_playing = False
         self.start_time = 0
         self.audio_duration = 0
+        self.zoom_level = 1.0
+        self.start_view = 0
         pygame.init()
         pygame.mixer.init()
         self.create_widgets()
 
     def create_widgets(self):
-        self.load_button = tk.Button(self.root, text="Load Audio", command=self.load_audio, width=20)
-        self.load_button.pack(pady=10)
+        self.load_audio_button = tk.Button(self.root, text="Load Audio", command=self.load_audio, width=20)
+        self.load_audio_button.pack(pady=10)
         self.play_button = tk.Button(self.root, text="Play", command=self.play_audio, width=20, state=tk.DISABLED)
         self.play_button.pack(pady=10)
         self.pause_button = tk.Button(self.root, text="Pause", command=self.pause_audio, width=20, state=tk.DISABLED)
@@ -37,6 +38,7 @@ class AudioPlayer:
         self.timestamp_label.pack(pady=10)
         self.waveform_canvas = tk.Canvas(self.root, width=self.WAVEFORM_WINDOW_WIDTH, height=self.WAVEFORM_WINDOW_HEIGHT, bg="white")
         self.waveform_canvas.pack(pady=20)
+        self.waveform_canvas.bind("<MouseWheel>", self.zoom_waveform)
         self.cursor_line = None
 
     def load_audio(self):
@@ -46,7 +48,7 @@ class AudioPlayer:
             self.play_button.config(state=tk.NORMAL)
             self.pause_button.config(state=tk.NORMAL)
             self.stop_button.config(state=tk.NORMAL)
-            self.load_button.config(state=tk.DISABLED)
+            self.load_audio_button.config(state=tk.DISABLED)
             self.plot_waveform()
 
     def plot_waveform(self):
@@ -63,11 +65,18 @@ class AudioPlayer:
 
             audio_array = audio_array / np.max(np.abs(audio_array))
             audio_array = (audio_array * (self.WAVEFORM_WINDOW_HEIGHT // 2)) + (self.WAVEFORM_WINDOW_HEIGHT // 2)
-            times = np.linspace(0, self.WAVEFORM_WINDOW_WIDTH, num=len(audio_array))
+            times = np.linspace(0, len(audio_array) / framerate, num=len(audio_array))
+
+            view_duration = self.audio_duration / self.zoom_level
+            end_view = min(self.start_view + view_duration, self.audio_duration)
+            start_idx = int((self.start_view / self.audio_duration) * len(audio_array))
+            end_idx = int((end_view / self.audio_duration) * len(audio_array))
+            visible_times = times[start_idx:end_idx]
+            visible_audio = audio_array[start_idx:end_idx]
 
             fig, ax = plt.subplots(figsize=(8, 3), dpi=100)
-            ax.plot(times, audio_array, color="blue", linewidth=1)
-            ax.set_xlim(0, self.WAVEFORM_WINDOW_WIDTH)
+            ax.plot(visible_times, visible_audio, color="blue", linewidth=1)
+            ax.set_xlim(self.start_view, end_view)
             ax.set_ylim(0, self.WAVEFORM_WINDOW_HEIGHT)
             ax.axis("off")
             fig.subplots_adjust(left=0, right=1, top=1, bottom=0)
@@ -81,6 +90,15 @@ class AudioPlayer:
             self.waveform_image = ImageTk.PhotoImage(image)
             self.waveform_canvas.create_image(0, 0, anchor=tk.NW, image=self.waveform_image)
             plt.close(fig)
+
+    def zoom_waveform(self, event):
+        if event.delta > 0 and self.zoom_level < 10.0:
+            self.zoom_level *= 1.1
+        elif event.delta < 0 and self.zoom_level > 1.0:
+            self.zoom_level /= 1.1
+        view_duration = self.audio_duration / self.zoom_level
+        self.start_view = max(0, min(self.start_view, self.audio_duration - view_duration))
+        self.plot_waveform()
 
     def play_audio(self):
         if not self.is_playing:
