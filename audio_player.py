@@ -46,6 +46,8 @@ class AudioPlayer:
             self.root, width=self.WAVEFORM_WINDOW_WIDTH, height=self.WAVEFORM_WINDOW_HEIGHT, bg="white")
         self.waveform_canvas.pack(pady=20)
         self.waveform_canvas.bind("<MouseWheel>", self.zoom_waveform)
+        self.waveform_canvas.bind("<Button-4>", self.zoom_waveform)
+        self.waveform_canvas.bind("<Button-5>", self.zoom_waveform)
         self.cursor_line = None
 
     def load_audio(self):
