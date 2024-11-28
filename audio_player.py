@@ -11,6 +11,9 @@ from PIL import Image, ImageTk
 
 
 class AudioPlayer:
+    WAVEFORM_WINDOW_WIDTH = 800
+    WAVEFORM_WINDOW_HEIGHT = 300
+
     def __init__(self, root):
         self.root = root
         self.file_path = None
@@ -32,7 +35,7 @@ class AudioPlayer:
         self.stop_button.pack(pady=10)
         self.timestamp_label = tk.Label(self.root, text="Timestamp: 0:00 / 0:00")
         self.timestamp_label.pack(pady=10)
-        self.waveform_canvas = tk.Canvas(self.root, width=800, height=300, bg="white")
+        self.waveform_canvas = tk.Canvas(self.root, width=self.WAVEFORM_WINDOW_WIDTH, height=self.WAVEFORM_WINDOW_HEIGHT, bg="white")
         self.waveform_canvas.pack(pady=20)
         self.cursor_line = None
 
@@ -58,17 +61,14 @@ class AudioPlayer:
             if n_channels == 2:
                 audio_array = audio_array[::2]
 
-            # Normalize amplitude to fit within canvas height (300 pixels)
-            audio_array = audio_array / np.max(np.abs(audio_array))  # Normalize to range [-1, 1]
-            audio_array = (audio_array * 150) + 150  # Scale to [0, 300]
-
-            # Normalize time to fit within canvas width (800 pixels)
-            times = np.linspace(0, 800, num=len(audio_array))
+            audio_array = audio_array / np.max(np.abs(audio_array))
+            audio_array = (audio_array * (self.WAVEFORM_WINDOW_HEIGHT // 2)) + (self.WAVEFORM_WINDOW_HEIGHT // 2)
+            times = np.linspace(0, self.WAVEFORM_WINDOW_WIDTH, num=len(audio_array))
 
             fig, ax = plt.subplots(figsize=(8, 3), dpi=100)
             ax.plot(times, audio_array, color="blue", linewidth=1)
-            ax.set_xlim(0, 800)
-            ax.set_ylim(0, 300)
+            ax.set_xlim(0, self.WAVEFORM_WINDOW_WIDTH)
+            ax.set_ylim(0, self.WAVEFORM_WINDOW_HEIGHT)
             ax.axis("off")
             fig.subplots_adjust(left=0, right=1, top=1, bottom=0)
 
@@ -114,11 +114,11 @@ class AudioPlayer:
             current_time = time.strftime("%M:%S", time.gmtime(elapsed))
             total_time = time.strftime("%M:%S", time.gmtime(self.audio_duration))
             self.timestamp_label.config(text=f"Timestamp: {current_time} / {total_time}")
-            cursor_x = min(800, int((elapsed / self.audio_duration) * 800))
+            cursor_x = min(self.WAVEFORM_WINDOW_WIDTH, int((elapsed / self.audio_duration) * self.WAVEFORM_WINDOW_WIDTH))
             if self.cursor_line:
                 self.waveform_canvas.delete(self.cursor_line)
             self.cursor_line = self.waveform_canvas.create_line(
-                cursor_x, 0, cursor_x, 300, fill="red", width=2
+                cursor_x, 0, cursor_x, self.WAVEFORM_WINDOW_HEIGHT, fill="red", width=2
             )
             time.sleep(0.05)
 
