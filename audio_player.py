@@ -9,6 +9,7 @@ import time
 from io import BytesIO
 from PIL import Image, ImageTk
 
+
 class AudioPlayer:
     WAVEFORM_WINDOW_WIDTH = 800
     WAVEFORM_WINDOW_HEIGHT = 300
@@ -26,23 +27,30 @@ class AudioPlayer:
         self.create_widgets()
 
     def create_widgets(self):
-        self.load_audio_button = tk.Button(self.root, text="Load Audio", command=self.load_audio, width=20)
+        self.load_audio_button = tk.Button(
+            self.root, text="Load Audio", command=self.load_audio, width=20)
         self.load_audio_button.pack(pady=10)
-        self.play_button = tk.Button(self.root, text="Play", command=self.play_audio, width=20, state=tk.DISABLED)
+        self.play_button = tk.Button(
+            self.root, text="Play", command=self.play_audio, width=20, state=tk.DISABLED)
         self.play_button.pack(pady=10)
-        self.pause_button = tk.Button(self.root, text="Pause", command=self.pause_audio, width=20, state=tk.DISABLED)
+        self.pause_button = tk.Button(
+            self.root, text="Pause", command=self.pause_audio, width=20, state=tk.DISABLED)
         self.pause_button.pack(pady=10)
-        self.stop_button = tk.Button(self.root, text="Stop", command=self.stop_audio, width=20, state=tk.DISABLED)
+        self.stop_button = tk.Button(
+            self.root, text="Stop", command=self.stop_audio, width=20, state=tk.DISABLED)
         self.stop_button.pack(pady=10)
-        self.timestamp_label = tk.Label(self.root, text="Timestamp: 0:00 / 0:00")
+        self.timestamp_label = tk.Label(
+            self.root, text="Timestamp: 0:00 / 0:00")
         self.timestamp_label.pack(pady=10)
-        self.waveform_canvas = tk.Canvas(self.root, width=self.WAVEFORM_WINDOW_WIDTH, height=self.WAVEFORM_WINDOW_HEIGHT, bg="white")
+        self.waveform_canvas = tk.Canvas(
+            self.root, width=self.WAVEFORM_WINDOW_WIDTH, height=self.WAVEFORM_WINDOW_HEIGHT, bg="white")
         self.waveform_canvas.pack(pady=20)
         self.waveform_canvas.bind("<MouseWheel>", self.zoom_waveform)
         self.cursor_line = None
 
     def load_audio(self):
-        self.file_path = filedialog.askopenfilename(filetypes=[("Audio Files", "*.wav")])
+        self.file_path = filedialog.askopenfilename(
+            filetypes=[("Audio Files", "*.wav")])
         if self.file_path:
             pygame.mixer.music.load(self.file_path)
             self.play_button.config(state=tk.NORMAL)
@@ -64,12 +72,16 @@ class AudioPlayer:
                 audio_array = audio_array[::2]
 
             audio_array = audio_array / np.max(np.abs(audio_array))
-            audio_array = (audio_array * (self.WAVEFORM_WINDOW_HEIGHT // 2)) + (self.WAVEFORM_WINDOW_HEIGHT // 2)
-            times = np.linspace(0, len(audio_array) / framerate, num=len(audio_array))
+            audio_array = (audio_array * (self.WAVEFORM_WINDOW_HEIGHT // 2)
+                           ) + (self.WAVEFORM_WINDOW_HEIGHT // 2)
+            times = np.linspace(0, len(audio_array) /
+                                framerate, num=len(audio_array))
 
             view_duration = self.audio_duration / self.zoom_level
-            end_view = min(self.start_view + view_duration, self.audio_duration)
-            start_idx = int((self.start_view / self.audio_duration) * len(audio_array))
+            end_view = min(self.start_view + view_duration,
+                           self.audio_duration)
+            start_idx = int(
+                (self.start_view / self.audio_duration) * len(audio_array))
             end_idx = int((end_view / self.audio_duration) * len(audio_array))
             visible_times = times[start_idx:end_idx]
             visible_audio = audio_array[start_idx:end_idx]
@@ -88,7 +100,8 @@ class AudioPlayer:
             buf.close()
             image = Image.open(BytesIO(image_data))
             self.waveform_image = ImageTk.PhotoImage(image)
-            self.waveform_canvas.create_image(0, 0, anchor=tk.NW, image=self.waveform_image)
+            self.waveform_canvas.create_image(
+                0, 0, anchor=tk.NW, image=self.waveform_image)
             plt.close(fig)
 
     def zoom_waveform(self, event):
@@ -97,7 +110,8 @@ class AudioPlayer:
         elif event.delta < 0 and self.zoom_level > 1.0:
             self.zoom_level /= 1.1
         view_duration = self.audio_duration / self.zoom_level
-        self.start_view = max(0, min(self.start_view, self.audio_duration - view_duration))
+        self.start_view = max(
+            0, min(self.start_view, self.audio_duration - view_duration))
         self.plot_waveform()
 
     def play_audio(self):
@@ -108,7 +122,8 @@ class AudioPlayer:
             self.play_button.config(state=tk.DISABLED)
             self.pause_button.config(state=tk.NORMAL)
             self.stop_button.config(state=tk.NORMAL)
-            threading.Thread(target=self.update_timestamp_and_cursor, daemon=True).start()
+            threading.Thread(
+                target=self.update_timestamp_and_cursor, daemon=True).start()
 
     def pause_audio(self):
         if self.is_playing:
@@ -130,9 +145,12 @@ class AudioPlayer:
         while self.is_playing:
             elapsed = time.time() - self.start_time
             current_time = time.strftime("%M:%S", time.gmtime(elapsed))
-            total_time = time.strftime("%M:%S", time.gmtime(self.audio_duration))
-            self.timestamp_label.config(text=f"Timestamp: {current_time} / {total_time}")
-            cursor_x = min(self.WAVEFORM_WINDOW_WIDTH, int((elapsed / self.audio_duration) * self.WAVEFORM_WINDOW_WIDTH))
+            total_time = time.strftime(
+                "%M:%S", time.gmtime(self.audio_duration))
+            self.timestamp_label.config(
+                text=f"Timestamp: {current_time} / {total_time}")
+            cursor_x = min(self.WAVEFORM_WINDOW_WIDTH, int(
+                (elapsed / self.audio_duration) * self.WAVEFORM_WINDOW_WIDTH))
             if self.cursor_line:
                 self.waveform_canvas.delete(self.cursor_line)
             self.cursor_line = self.waveform_canvas.create_line(
