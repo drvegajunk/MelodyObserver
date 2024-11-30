@@ -3,14 +3,14 @@ from audio_player_ui import AudioPlayerUi
 
 
 class AudioPlayer:
-    def __init__(self):
+    def __init__(self, audio_player_ui=AudioPlayerUi(), audio_player_mixer=AudioPlayerMixer()):
         self.is_playing = False
-        self.audio_player_ui = AudioPlayerUi()
-        self.audio_player_mixer = AudioPlayerMixer()
-        self.audio_player_ui.load_audio_button.configure(command=self.load)
-        self.audio_player_ui.play_button.configure(command=self.play)
-        self.audio_player_ui.pause_button.configure(command=self.pause)
-        self.audio_player_ui.stop_button.configure(command=self.stop)
+        self.audio_player_ui = audio_player_ui
+        self.audio_player_mixer = audio_player_mixer
+        self.audio_player_ui.set_load_button_callback(self.load)
+        self.audio_player_ui.set_play_button_callback(self.play)
+        self.audio_player_ui.set_pause_button_callback(self.pause)
+        self.audio_player_ui.set_stop_button_callback(self.stop)
         self.audio_player_ui.mainloop()
 
     def load(self):

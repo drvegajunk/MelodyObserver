@@ -1,4 +1,5 @@
 import tkinter as tk
+from tkinter import filedialog
 import matplotlib.pyplot as plt
 import numpy as np
 import wave
@@ -30,11 +31,23 @@ class AudioPlayerUi:
         self.__init_ui_elements(root)
         self.root = root
 
+    def set_load_button_callback(self, callback):
+        self.load_audio_button.configure(command=callback)
+
+    def set_play_button_callback(self, callback):
+        self.play_button.configure(command=callback)
+
+    def set_pause_button_callback(self, callback):
+        self.pause_button.configure(command=callback)
+
+    def set_stop_button_callback(self, callback):
+        self.stop_button.configure(command=callback)
+
     def mainloop(self):
         self.root.mainloop()
 
     def load(self):
-        file_path = tk.filedialog.askopenfilename(
+        file_path = filedialog.askopenfilename(
             filetypes=[("Audio Files", "*.wav")])
         if not file_path:
             raise FileNotFoundError()
