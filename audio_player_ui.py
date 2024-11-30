@@ -39,6 +39,7 @@ class AudioPlayerUi:
         if not file_path:
             raise FileNotFoundError()
 
+        self.is_playing = False
         self.play_button.config(state=tk.NORMAL)
         self.pause_button.config(state=tk.NORMAL)
         self.stop_button.config(state=tk.NORMAL)
