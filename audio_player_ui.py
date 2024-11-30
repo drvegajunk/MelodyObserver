@@ -17,19 +17,77 @@ class AudioPlayerUi:
     WAVEFORM_WINDOW_HEIGHT = AUDIO_PLAYER_WINDOW_HEIGHT // 2
     TIMESTAMP_START_TEXT = "Timestamp: 0:00 / 0:00"
 
-    def __init__(self):
+    @classmethod
+    def create_root(cls):
+        root = tk.Tk()
+        root.title(cls.AUDIO_PLAYER_TITLE)
+        root.geometry(
+            f"{cls.AUDIO_PLAYER_WINDOW_HEIGHT}x{cls.AUDIO_PLAYER_WINDOW_WIDTH}")
+        return root
+
+    @classmethod
+    def create_timestamp_label(cls, root):
+        timestamp_label = tk.Label(root, text=cls.TIMESTAMP_START_TEXT)
+        timestamp_label.pack(pady=10)
+        return timestamp_label
+
+    @classmethod
+    def create_waveform_canvas(cls, root, callback):
+        waveform_canvas = tk.Canvas(
+            root, width=cls.WAVEFORM_WINDOW_WIDTH, height=cls.WAVEFORM_WINDOW_HEIGHT, bg="white")
+        waveform_canvas.pack(pady=20)
+        waveform_canvas.bind("<MouseWheel>", callback)
+        waveform_canvas.bind("<Button-4>", callback)
+        waveform_canvas.bind("<Button-5>", callback)
+        return waveform_canvas
+
+    @staticmethod
+    def create_load_audio_button(root):
+        load_audio_button = tk.Button(root, text="Load Audio", width=20)
+        load_audio_button.pack(pady=10)
+        return load_audio_button
+
+    @staticmethod
+    def create_play_button(root):
+        play_button = tk.Button(root, text="Play", width=20, state=tk.DISABLED)
+        play_button.pack(pady=10)
+        return play_button
+
+    @staticmethod
+    def create_pause_button(root):
+        pause_button = tk.Button(
+            root, text="Pause", width=20, state=tk.DISABLED)
+        pause_button.pack(pady=10)
+        return pause_button
+
+    @staticmethod
+    def create_stop_button(root):
+        stop_button = tk.Button(root, text="Stop", width=20, state=tk.DISABLED)
+        stop_button.pack(pady=10)
+        return stop_button
+
+    def __init__(self, root=None, timestamp_label=None, waveform_canvas=None, load_audio_button=None,
+                 play_button=None, pause_button=None, stop_button=None):
         self.start_time = 0
         self.audio_duration = 0
         self.zoom_level = 1.0
         self.start_view = 0
         self.is_playing = False
+        self.cursor_line = None
 
-        root = tk.Tk()
-        root.title(self.AUDIO_PLAYER_TITLE)
-        root.geometry(
-            f"{self.AUDIO_PLAYER_WINDOW_HEIGHT}x{self.AUDIO_PLAYER_WINDOW_WIDTH}")
-        self.__init_ui_elements(root)
-        self.root = root
+        self.root = root or AudioPlayerUi.create_root()
+        self.timestamp_label = timestamp_label or AudioPlayerUi.create_timestamp_label(
+            self.root)
+        self.waveform_canvas = waveform_canvas or AudioPlayerUi.create_waveform_canvas(
+            self.root, self.__zoom_waveform)
+        self.load_audio_button = load_audio_button or AudioPlayerUi.create_load_audio_button(
+            self.root)
+        self.play_button = play_button or AudioPlayerUi.create_play_button(
+            self.root)
+        self.pause_button = pause_button or AudioPlayerUi.create_pause_button(
+            self.root)
+        self.stop_button = stop_button or AudioPlayerUi.create_stop_button(
+            self.root)
 
     def set_load_button_callback(self, callback):
         self.load_audio_button.configure(command=callback)
@@ -80,28 +138,6 @@ class AudioPlayerUi:
         self.stop_button.config(state=tk.DISABLED)
         self.timestamp_label.config(text=self.TIMESTAMP_START_TEXT)
         self.waveform_canvas.delete(self.cursor_line)
-        self.cursor_line = None
-
-    def __init_ui_elements(self, root):
-        self.load_audio_button = tk.Button(root, text="Load Audio", width=20)
-        self.load_audio_button.pack(pady=10)
-        self.play_button = tk.Button(
-            root, text="Play", width=20, state=tk.DISABLED)
-        self.play_button.pack(pady=10)
-        self.pause_button = tk.Button(
-            root, text="Pause", width=20, state=tk.DISABLED)
-        self.pause_button.pack(pady=10)
-        self.stop_button = tk.Button(
-            root, text="Stop", width=20, state=tk.DISABLED)
-        self.stop_button.pack(pady=10)
-        self.timestamp_label = tk.Label(root, text=self.TIMESTAMP_START_TEXT)
-        self.timestamp_label.pack(pady=10)
-        self.waveform_canvas = tk.Canvas(
-            root, width=self.WAVEFORM_WINDOW_WIDTH, height=self.WAVEFORM_WINDOW_HEIGHT, bg="white")
-        self.waveform_canvas.pack(pady=20)
-        self.waveform_canvas.bind("<MouseWheel>", self.__zoom_waveform)
-        self.waveform_canvas.bind("<Button-4>", self.__zoom_waveform)
-        self.waveform_canvas.bind("<Button-5>", self.__zoom_waveform)
         self.cursor_line = None
 
     def __plot_waveform(self, file_path):
