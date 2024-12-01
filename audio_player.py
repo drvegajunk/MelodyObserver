@@ -6,8 +6,6 @@ import time
 
 
 class AudioPlayer:
-    DEFAULT_FILE_PATH = "music.wav"
-
     def __init__(self, audio_player_ui=AudioPlayerUi(), audio_player_mixer=AudioPlayerMixer()):
         self.is_playing = False
         self.audio_player_ui = audio_player_ui
