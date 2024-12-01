@@ -6,6 +6,8 @@ import time
 
 
 class AudioPlayer:
+    UPDATE_TIMESTAMP_INTERVAL = 0.10
+
     def __init__(self, audio_player_ui=AudioPlayerUi(), audio_player_mixer=AudioPlayerMixer()):
         self.is_playing = False
         self.audio_player_ui = audio_player_ui
@@ -50,7 +52,7 @@ class AudioPlayer:
         while self.is_playing:
             audio_time_elapsed = self.audio_player_mixer.get_time_elapsed()
             self.audio_player_ui.set_time_elapsed(audio_time_elapsed)
-            time.sleep(0.20)
+            time.sleep(self.UPDATE_TIMESTAMP_INTERVAL)
 
 
 if __name__ == "__main__":
