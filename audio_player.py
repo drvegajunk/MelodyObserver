@@ -30,18 +30,18 @@ class AudioPlayer:
         if self.is_playing:
             return
 
+        self.is_playing = True
         self.audio_player_mixer.play()
         self.audio_player_ui.play()
-        self.is_playing = True
         threading.Thread(target=self.send_play_timestamp).start()
 
     def pause(self):
         if not self.is_playing:
             return
 
+        self.is_playing = False
         self.audio_player_mixer.pause()
         self.audio_player_ui.pause()
-        self.is_playing = False
 
     def stop(self):
         self.is_playing = False
