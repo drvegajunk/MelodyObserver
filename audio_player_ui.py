@@ -1,28 +1,30 @@
 import tkinter as tk
 from tkinter import filedialog
+import time
 import matplotlib.pyplot as plt
-import numpy as np
-import wave
 from io import BytesIO
 from PIL import Image, ImageTk
-import threading
-import time
+import numpy as np
 
 
 class AudioPlayerUi:
     AUDIO_PLAYER_TITLE = "Melody Observer"
-    AUDIO_PLAYER_WINDOW_WIDTH = 800
-    AUDIO_PLAYER_WINDOW_HEIGHT = 600
-    WAVEFORM_WINDOW_WIDTH = AUDIO_PLAYER_WINDOW_WIDTH
-    WAVEFORM_WINDOW_HEIGHT = AUDIO_PLAYER_WINDOW_HEIGHT // 2
     TIMESTAMP_START_TEXT = "Timestamp: 0:00 / 0:00"
+    AUDIO_PLAYER_WINDOW_HEIGHT = 800
+    AUDIO_PLAYER_WINDOW_WIDTH = 600
+    SIGNAL_WINDOW_WIDTH = AUDIO_PLAYER_WINDOW_WIDTH
+    SIGNAL_WINDOW_HEIGHT = AUDIO_PLAYER_WINDOW_HEIGHT // 2
+    SIGNAL_PLOT_DPI = 100
+    SIGNAL_WIDTH_INCHES = SIGNAL_WINDOW_WIDTH // SIGNAL_PLOT_DPI
+    SIGNAL_HEIGHT_INCHES = SIGNAL_WINDOW_HEIGHT // SIGNAL_PLOT_DPI
+    MAX_SIGNAL_SAMPLES = 1000
 
     @classmethod
     def create_root(cls):
         root = tk.Tk()
         root.title(cls.AUDIO_PLAYER_TITLE)
         root.geometry(
-            f"{cls.AUDIO_PLAYER_WINDOW_HEIGHT}x{cls.AUDIO_PLAYER_WINDOW_WIDTH}")
+            f"{cls.AUDIO_PLAYER_WINDOW_WIDTH}x{cls.AUDIO_PLAYER_WINDOW_HEIGHT}")
         return root
 
     @classmethod
@@ -32,14 +34,14 @@ class AudioPlayerUi:
         return timestamp_label
 
     @classmethod
-    def create_waveform_canvas(cls, root, callback):
-        waveform_canvas = tk.Canvas(
-            root, width=cls.WAVEFORM_WINDOW_WIDTH, height=cls.WAVEFORM_WINDOW_HEIGHT, bg="white")
-        waveform_canvas.pack(pady=20)
-        waveform_canvas.bind("<MouseWheel>", callback)
-        waveform_canvas.bind("<Button-4>", callback)
-        waveform_canvas.bind("<Button-5>", callback)
-        return waveform_canvas
+    def create_signal_canvas(cls, root, callback):
+        signal_canvas = tk.Canvas(
+            root, width=cls.SIGNAL_WINDOW_WIDTH, height=cls.SIGNAL_WINDOW_HEIGHT, bg="white")
+        signal_canvas.pack(pady=20)
+        signal_canvas.bind("<MouseWheel>", callback)
+        signal_canvas.bind("<Button-4>", callback)
+        signal_canvas.bind("<Button-5>", callback)
+        return signal_canvas
 
     @staticmethod
     def create_load_audio_button(root):
@@ -66,20 +68,14 @@ class AudioPlayerUi:
         stop_button.pack(pady=10)
         return stop_button
 
-    def __init__(self, root=None, timestamp_label=None, waveform_canvas=None, load_audio_button=None,
+    def __init__(self, root=None, timestamp_label=None, signal_canvas=None, load_audio_button=None,
                  play_button=None, pause_button=None, stop_button=None):
-        self.start_time = 0
-        self.audio_duration = 0
-        self.zoom_level = 1.0
-        self.start_view = 0
-        self.is_playing = False
+        self.magnification = 1.0
         self.cursor_line = None
 
         self.root = root or AudioPlayerUi.create_root()
         self.timestamp_label = timestamp_label or AudioPlayerUi.create_timestamp_label(
             self.root)
-        self.waveform_canvas = waveform_canvas or AudioPlayerUi.create_waveform_canvas(
-            self.root, self.__zoom_waveform)
         self.load_audio_button = load_audio_button or AudioPlayerUi.create_load_audio_button(
             self.root)
         self.play_button = play_button or AudioPlayerUi.create_play_button(
@@ -88,6 +84,8 @@ class AudioPlayerUi:
             self.root)
         self.stop_button = stop_button or AudioPlayerUi.create_stop_button(
             self.root)
+        self.signal_canvas = signal_canvas or AudioPlayerUi.create_signal_canvas(
+            self.root, self.update_magnification)
 
     def set_load_button_callback(self, callback):
         self.load_audio_button.configure(command=callback)
@@ -104,110 +102,101 @@ class AudioPlayerUi:
     def mainloop(self):
         self.root.mainloop()
 
-    def load(self):
+    def get_file_path(self):
         file_path = filedialog.askopenfilename(
             filetypes=[("Audio Files", "*.wav")])
         if not file_path:
             raise FileNotFoundError()
 
-        self.is_playing = False
         self.play_button.config(state=tk.NORMAL)
         self.pause_button.config(state=tk.NORMAL)
         self.stop_button.config(state=tk.NORMAL)
-        self.load_audio_button.config(state=tk.DISABLED)
-        self.__plot_waveform(file_path)
         return file_path
 
     def play(self):
-        self.is_playing = True
-        self.start_time = time.time()
         self.play_button.config(state=tk.DISABLED)
         self.pause_button.config(state=tk.NORMAL)
         self.stop_button.config(state=tk.NORMAL)
-        threading.Thread(
-            target=self.__update_timestamp_and_cursor).start()
 
     def pause(self):
-        self.is_playing = False
         self.play_button.config(state=tk.NORMAL)
 
     def stop(self):
-        self.is_playing = False
         self.play_button.config(state=tk.NORMAL)
         self.pause_button.config(state=tk.DISABLED)
         self.stop_button.config(state=tk.DISABLED)
         self.timestamp_label.config(text=self.TIMESTAMP_START_TEXT)
-        self.waveform_canvas.delete(self.cursor_line)
+        self.signal_canvas.delete(self.cursor_line)
         self.cursor_line = None
 
-    def __plot_waveform(self, file_path):
-        with wave.open(file_path, "rb") as wav_file:
-            n_frames = wav_file.getnframes()
-            framerate = wav_file.getframerate()
-            duration = n_frames / float(framerate)
-            self.audio_duration = duration
-            audio_frames = wav_file.readframes(n_frames)
-            audio_array = np.frombuffer(audio_frames, dtype=np.int16)
-            n_channels = wav_file.getnchannels()
-            if n_channels == 2:
-                audio_array = audio_array[::2]
+    def set_audio_signal(self, audio_signal=None):
+        if not audio_signal:
+            audio_signal = self.audio_signal
+        if not audio_signal:
+            raise TypeError("Null audio signal")
 
-            audio_array = audio_array / np.max(np.abs(audio_array))
-            audio_array = (audio_array * (self.WAVEFORM_WINDOW_HEIGHT // 2)
-                           ) + (self.WAVEFORM_WINDOW_HEIGHT // 2)
-            times = np.linspace(0, len(audio_array) /
-                                framerate, num=len(audio_array))
+        self.audio_signal = audio_signal
+        self.total_time_label = time.strftime(
+            "%M:%S", time.gmtime(self.audio_signal.duration))
 
-            view_duration = self.audio_duration / self.zoom_level
-            end_view = min(self.start_view + view_duration,
-                           self.audio_duration)
-            start_idx = int(
-                (self.start_view / self.audio_duration) * len(audio_array))
-            end_idx = int((end_view / self.audio_duration) * len(audio_array))
-            visible_times = times[start_idx:end_idx]
-            visible_audio = audio_array[start_idx:end_idx]
+    def plot_audio_signal(self):
+        if not self.audio_signal:
+            raise TypeError("Null audio signal")
 
-            fig, ax = plt.subplots(figsize=(8, 3), dpi=100)
-            ax.plot(visible_times, visible_audio, color="blue", linewidth=1)
-            ax.set_xlim(self.start_view, end_view)
-            ax.set_ylim(0, self.WAVEFORM_WINDOW_HEIGHT)
-            ax.axis("off")
-            fig.subplots_adjust(left=0, right=1, top=1, bottom=0)
+        half_height = self.SIGNAL_WINDOW_HEIGHT // 2
+        y_values = self.audio_signal.signal * half_height + half_height
+        x_values = np.arange(0, self.audio_signal.n_frames)
+        magnified_duration = int(
+            self.audio_signal.n_frames // self.magnification)
+        step_size = max(1, self.audio_signal.n_frames //
+                        self.MAX_SIGNAL_SAMPLES)
 
-            buf = BytesIO()
-            fig.savefig(buf, format="PNG", dpi=100)
-            buf.seek(0)
-            image_data = buf.read()
-            buf.close()
-            image = Image.open(BytesIO(image_data))
-            self.waveform_image = ImageTk.PhotoImage(image)
-            self.waveform_canvas.create_image(
-                0, 0, anchor=tk.NW, image=self.waveform_image)
-            plt.close(fig)
+        start_index = 0
+        end_index = min(start_index + magnified_duration,
+                        self.audio_signal.n_frames)
 
-    def __zoom_waveform(self, event):
-        if event.delta > 0 and self.zoom_level < 10.0:
-            self.zoom_level *= 1.1
-        elif event.delta < 0 and self.zoom_level > 1.0:
-            self.zoom_level /= 1.1
-        view_duration = self.audio_duration / self.zoom_level
-        self.start_view = max(
-            0, min(self.start_view, self.audio_duration - view_duration))
-        self.__plot_waveform()
+        figure, axes = plt.subplots(figsize=(
+            self.SIGNAL_WIDTH_INCHES, self.SIGNAL_HEIGHT_INCHES),
+            dpi=self.SIGNAL_PLOT_DPI, layout="constrained")
+        axes.plot(x_values[start_index:end_index:step_size],
+                  y_values[start_index:end_index:step_size])
+        axes.set_xlim(start_index, end_index)
+        axes.set_ylim(0, self.SIGNAL_WINDOW_HEIGHT)
+        axes.axis("off")
 
-    def __update_timestamp_and_cursor(self):
-        while self.is_playing:
-            elapsed = time.time() - self.start_time
-            current_time = time.strftime("%M:%S", time.gmtime(elapsed))
-            total_time = time.strftime(
-                "%M:%S", time.gmtime(self.audio_duration))
-            self.timestamp_label.config(
-                text=f"Timestamp: {current_time} / {total_time}")
-            cursor_x = min(self.WAVEFORM_WINDOW_WIDTH, int(
-                (elapsed / self.audio_duration) * self.WAVEFORM_WINDOW_WIDTH))
-            if self.cursor_line:
-                self.waveform_canvas.delete(self.cursor_line)
-            self.cursor_line = self.waveform_canvas.create_line(
-                cursor_x, 0, cursor_x, self.WAVEFORM_WINDOW_HEIGHT, fill="red", width=2
-            )
-            time.sleep(0.05)
+        image_buffer = BytesIO()
+        figure.savefig(image_buffer, dpi=self.SIGNAL_PLOT_DPI,
+                       format="png", pad_inches=0)
+        self.signal_image = ImageTk.PhotoImage(Image.open(image_buffer))
+        self.signal_canvas.create_image(
+            0, 0, image=self.signal_image, anchor="nw")
+        self.signal_canvas_width = self.signal_canvas.winfo_width()
+        plt.close(figure)
+
+    def set_time_elapsed(self, time_elapsed):
+        if not self.total_time_label:
+            raise TypeError("Null total time label")
+        if not self.audio_signal:
+            raise TypeError("Null audio signal")
+        if not self.signal_canvas_width:
+            raise TypeError("Null signal canvas width")
+
+        current_time = time.strftime("%M:%S", time.gmtime(time_elapsed))
+        self.timestamp_label.config(
+            text=f"Timestamp: {current_time} / {self.total_time_label}")
+        cursor_line_x = int((time_elapsed / self.audio_signal.duration)
+                            * (self.signal_canvas_width))
+        if self.cursor_line:
+            self.signal_canvas.delete(self.cursor_line)
+        self.cursor_line = self.signal_canvas.create_line(
+            cursor_line_x, 0, cursor_line_x, self.SIGNAL_WINDOW_HEIGHT, fill="red", width=2)
+
+    def update_magnification(self, event):
+        if not self.audio_signal:
+            return
+
+        if event.delta > 0 and self.magnification < 10.0:
+            self.magnification *= 1.1
+        elif event.delta < 0 and self.magnification > 1.0:
+            self.magnification /= 1.1
+        self.plot_audio_signal()
