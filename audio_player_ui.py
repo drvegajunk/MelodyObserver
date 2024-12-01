@@ -151,6 +151,7 @@ class AudioPlayerUi:
         step_size = max(1, self.audio_signal.n_frames //
                         self.MAX_SIGNAL_SAMPLES)
 
+        # TODO: this needs to be properly updated upon play + pause + play
         start_index = 0
         end_index = min(start_index + magnified_duration,
                         self.audio_signal.n_frames)
@@ -174,6 +175,7 @@ class AudioPlayerUi:
         plt.close(figure)
 
     def set_time_elapsed(self, time_elapsed):
+        # TODO: need to set time elapsed via mouse click on signal canvas
         if not self.total_time_label:
             raise TypeError("Null total time label")
         if not self.audio_signal:
@@ -184,6 +186,7 @@ class AudioPlayerUi:
         current_time = time.strftime("%M:%S", time.gmtime(time_elapsed))
         self.timestamp_label.config(
             text=f"Timestamp: {current_time} / {self.total_time_label}")
+        # TODO: this needs to be properly updated upon magnification
         cursor_line_x = int((time_elapsed / self.audio_signal.duration)
                             * (self.signal_canvas_width))
         if self.cursor_line:
