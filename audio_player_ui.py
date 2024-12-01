@@ -171,7 +171,6 @@ class AudioPlayerUi:
         self.signal_image = ImageTk.PhotoImage(Image.open(image_buffer))
         self.signal_canvas.create_image(
             0, 0, image=self.signal_image, anchor="nw")
-        self.signal_canvas_width = self.signal_canvas.winfo_width()
         plt.close(figure)
 
     def set_time_elapsed(self, time_elapsed):
@@ -180,15 +179,15 @@ class AudioPlayerUi:
             raise TypeError("Null total time label")
         if not self.audio_signal:
             raise TypeError("Null audio signal")
-        if not self.signal_canvas_width:
-            raise TypeError("Null signal canvas width")
+        if not self.signal_canvas:
+            raise TypeError("Null signal canvas")
 
         current_time = time.strftime("%M:%S", time.gmtime(time_elapsed))
         self.timestamp_label.config(
             text=f"Timestamp: {current_time} / {self.total_time_label}")
         # TODO: this needs to be properly updated upon magnification
         cursor_line_x = int((time_elapsed / self.audio_signal.duration)
-                            * (self.signal_canvas_width))
+                            * (self.signal_canvas.winfo_width()))
         if self.cursor_line:
             self.signal_canvas.delete(self.cursor_line)
         self.cursor_line = self.signal_canvas.create_line(
