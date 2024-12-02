@@ -129,9 +129,7 @@ class AudioPlayerUi:
         self.signal_canvas.delete(self.cursor_line)
         self.cursor_line = None
 
-    def set_audio_signal(self, audio_signal=None):
-        if not audio_signal:
-            audio_signal = self.audio_signal
+    def set_audio_signal(self, audio_signal):
         if not audio_signal:
             raise TypeError("Null audio signal")
 
